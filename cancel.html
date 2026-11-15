@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Cancel appointment | J &amp; L Auto Services</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root { --black: #1A1A1A; --red: #D9232A; --red-dark: #B3161C; --text: #1A1A1A; --muted: #555B61; --line: #E1E1E1; --panel: #F5F5F5; --page: #ECECEC; }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: "Manrope", system-ui, sans-serif; font-size: 16px; line-height: 1.65; color: var(--text); background: var(--page); -webkit-font-smoothing: antialiased; }
+  header { background: var(--black); color: #fff; padding: 1rem 1.25rem; }
+  header a { color: #fff; text-decoration: none; font-weight: 800; font-size: 1.1rem; }
+  header small { display: block; color: #B4B4B4; font-weight: 500; font-size: .85rem; }
+  main { max-width: 560px; margin: 2.5rem auto; padding: 0 1.25rem; }
+  .card { background: #fff; border-top: 4px solid var(--red); border-radius: 6px; padding: 2rem; box-shadow: 0 2px 10px rgba(0,0,0,.06); }
+  h1 { font-size: 1.6rem; line-height: 1.2; margin: 0 0 .75rem; }
+  p { margin: 0 0 1rem; }
+  .muted { color: var(--muted); }
+  dl { display: grid; grid-template-columns: max-content 1fr; gap: .4rem 1rem; background: var(--panel); padding: 1rem 1.25rem; border-radius: 4px; margin: 0 0 1.5rem; }
+  dt { font-weight: 700; }
+  dd { margin: 0; }
+  label { display: block; font-weight: 700; margin-bottom: .35rem; }
+  label span { font-weight: 500; color: var(--muted); }
+  textarea { width: 100%; min-height: 90px; font: inherit; padding: .65rem .75rem; border: 1px solid #BDBDBD; border-radius: 4px; resize: vertical; }
+  textarea:focus, button:focus-visible, a:focus-visible { outline: 3px solid #1A73E8; outline-offset: 2px; }
+  .actions { display: flex; flex-wrap: wrap; gap: .75rem; margin-top: 1.25rem; align-items: center; }
+  button, .btn { display: inline-block; font: inherit; font-weight: 800; border: 0; border-radius: 4px; padding: .8rem 1.3rem; cursor: pointer; text-decoration: none; }
+  button { background: var(--red); color: #fff; }
+  button:hover { background: var(--red-dark); }
+  button[disabled] { opacity: .6; cursor: wait; }
+  .btn { background: var(--black); color: #fff; }
+  .link { color: var(--text); font-weight: 700; }
+  .error { color: var(--red-dark); font-weight: 700; margin-top: 1rem; }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<header><a href="/">J &amp; L Auto Services<small>1100 Champlin Ave, Utica, NY 13502 · 315-793-0835</small></a></header>
+<main>
+  <div class="card" aria-live="polite">
+    <section id="loading"><p class="muted">Loading your appointment…</p></section>
+
+    <section id="problem" hidden>
+      <h1 id="problemTitle">We couldn't find that appointment</h1>
+      <p id="problemText">This cancel link may be incomplete or out of date. Please call us at <a class="link" href="tel:+13157930835">315-793-0835</a> and we'll sort it out.</p>
+      <a class="btn" href="/">Back to the website</a>
+    </section>
+
+    <form id="form" hidden novalidate>
+      <h1>Cancel your appointment?</h1>
+      <p>Hi <span id="who"></span>, here's the appointment you're about to cancel:</p>
+      <dl>
+        <dt>Day</dt><dd id="day"></dd>
+        <dt>Time</dt><dd id="time"></dd>
+        <dt>Services</dt><dd id="services"></dd>
+        <dt>Vehicle</dt><dd id="vehicle"></dd>
+      </dl>
+      <label for="reason">Reason for cancelling <span>(optional)</span></label>
+      <textarea id="reason" name="reason" maxlength="1000" placeholder="For example: car is running fine now, found another time…"></textarea>
+      <div class="actions">
+        <button type="submit" id="submit">Yes, cancel my appointment</button>
+        <a class="link" href="/">Keep my appointment</a>
+        <a class="link" id="modifyLink" href="/modify">Change the day or time instead</a>
+      </div>
+      <p class="error" id="error" role="alert" hidden></p>
+    </form>
+
+    <section id="done" hidden>
+      <h1>Your appointment is cancelled</h1>
+      <p>We've freed up your <strong id="doneWhen"></strong> time and sent a cancellation confirmation to your email. The shop has been notified too.</p>
+      <p class="muted">Need to come in another time?</p>
+      <a class="btn" href="/#/book">Book a new time</a>
+    </section>
+  </div>
+</main>
+<script>
+(() => {
+  const $ = (id) => document.getElementById(id);
+  const token = new URLSearchParams(location.search).get("token") || "";
+  const show = (id) => ["loading", "problem", "form", "done"].forEach((s) => ($(s).hidden = s !== id));
+  const problem = (title, html) => {
+    $("problemTitle").textContent = title;
+    if (html) $("problemText").innerHTML = html;
+    show("problem");
+  };
+  let when = "";
+
+  if (!token) return problem("We couldn't find that appointment");
+  $("modifyLink").href = `/modify?token=${encodeURIComponent(token)}`;
+
+  fetch(`/api/bookings/cancel?token=${encodeURIComponent(token)}`, { cache: "no-store" })
+    .then((r) => (r.ok ? r.json() : Promise.reject(r.status)))
+    .then((b) => {
+      when = `${b.dateLabel} at ${b.timeLabel}`;
+      if (b.cancelled) {
+        return problem("This appointment is already cancelled",
+          `Your ${when} appointment was already cancelled. <a class="link" href="/#/book">Book a new time</a> or call us at <a class="link" href="tel:+13157930835">315-793-0835</a>.`);
+      }
+      if (b.past) {
+        return problem("This appointment has already passed",
+          `Your ${when} appointment is in the past, so it can't be cancelled online. Questions? Call us at <a class="link" href="tel:+13157930835">315-793-0835</a>.`);
+      }
+      $("who").textContent = b.name;
+      $("day").textContent = b.dateLabel;
+      $("time").textContent = b.timeLabel;
+      $("services").textContent = b.services;
+      $("vehicle").textContent = b.vehicle || "—";
+      show("form");
+    })
+    .catch(() => problem("We couldn't find that appointment"));
+
+  $("form").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const btn = $("submit");
+    btn.disabled = true;
+    btn.textContent = "Cancelling…";
+    $("error").hidden = true;
+    try {
+      const r = await fetch("/api/bookings/cancel", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token, reason: $("reason").value }),
+      });
+      const data = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(data.error || "Something went wrong.");
+      $("doneWhen").textContent = when;
+      show("done");
+    } catch (err) {
+      $("error").textContent = `${err.message} Please try again, or call us at 315-793-0835.`;
+      $("error").hidden = false;
+      btn.disabled = false;
+      btn.textContent = "Yes, cancel my appointment";
+    }
+  });
+})();
+</script>
+</body>
+</html>

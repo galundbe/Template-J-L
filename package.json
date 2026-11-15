@@ -1,0 +1,15 @@
+{
+  "name": "magnificent-choux-ef4124",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@netlify/database": "^2.0.3",
+    "@netlify/functions": "^6.1.1",
+    "drizzle-orm": "^1.0.0-beta.22",
+    "nodemailer": "^10.5.0"
+  },
+  "devDependencies": {
+    "@types/nodemailer": "^8.0.2",
+    "drizzle-kit": "^1.0.0-beta.22"
+  }
+}
